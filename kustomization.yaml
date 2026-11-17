@@ -1,4 +1,4 @@
-# kubectl apply -k https://github.com/sasakipochi/k3s-mrc-lab?ref=v0.1.1 で全部入る
+# kubectl apply -k https://github.com/sasakipochi/k3s-mrc-lab?ref=v0.1.2 で全部入る
 #   namespace mrc-lab に fabric (ghcr.io/sasakipochi/mrc-fabric) と Prometheus/Grafana
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization

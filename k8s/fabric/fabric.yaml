@@ -19,7 +19,7 @@ spec:
       terminationGracePeriodSeconds: 10
       containers:
         - name: fabric
-          image: ghcr.io/sasakipochi/mrc-fabric:0.1.1
+          image: ghcr.io/sasakipochi/mrc-fabric:0.1.2
           imagePullPolicy: IfNotPresent
           env:
             - {name: GRAFANA_URL, value: "http://grafana.mrclab.localhost/"}

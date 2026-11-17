@@ -80,7 +80,7 @@ h2 で受信     fcbb:bbbb:e002::
 ### 入れる
 
 ```bash
-kubectl apply -k 'https://github.com/sasakipochi/k3s-mrc-lab?ref=v0.1.1'
+kubectl apply -k 'https://github.com/sasakipochi/k3s-mrc-lab?ref=v0.1.2'
 kubectl -n mrc-lab rollout status deploy/mrc-fabric
 ```
 

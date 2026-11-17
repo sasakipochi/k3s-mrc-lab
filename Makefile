@@ -5,7 +5,7 @@
 export KUBECONFIG ?= $(HOME)/.kube/config
 NS        := mrc-lab
 REGISTRY  ?= localhost:5000
-VERSION   := 0.1.1
+VERSION   := 0.1.2
 IMAGE     := $(REGISTRY)/mrc-fabric:$(VERSION)
 PUBLIC    := ghcr.io/sasakipochi/mrc-fabric:$(VERSION)
 UI_PORT   ?= 8089
