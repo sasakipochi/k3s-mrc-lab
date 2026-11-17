@@ -73,14 +73,14 @@ h2 で受信     fcbb:bbbb:e002::
 前提:
 
 - k3s (単一ノードで確認。Grafana の Ingress は k3s 標準の Traefik を使う)
-- Linux カーネル 6.6 以上。tcx (eBPF) と SRv6 の next-csid、`sch_fq` を使う。このラボは 7.0 で確認
+- Linux カーネル 6.6 以上。tcx (eBPF) と SRv6 の next-csid、`sch_fq` を使う。6.8 (Ubuntu 24.04 の標準) と 7.0 で確認
 - fabric の Pod は privileged で動く (Pod の中でネットワークネームスペース・veth・eBPF を作る。ホストのネットワークには触らない)
 - イメージは amd64 / arm64 を公開しているが、確認したのは amd64 だけ
 
 ### 入れる
 
 ```bash
-kubectl apply -k 'https://github.com/sasakipochi/k3s-mrc-lab?ref=v0.1.0'
+kubectl apply -k 'https://github.com/sasakipochi/k3s-mrc-lab?ref=v0.1.1'
 kubectl -n mrc-lab rollout status deploy/mrc-fabric
 ```
 
@@ -91,8 +91,9 @@ namespace `mrc-lab` に、ラボ本体 (`ghcr.io/sasakipochi/mrc-fabric`)・Prom
 kubectl -n mrc-lab port-forward svc/mrc-fabric 8089:8080   # 操作盤 → http://127.0.0.1:8089/
 ```
 
-- Grafana: http://grafana.mrclab.localhost/ (匿名で閲覧可)。この方法で入れた場合、admin は Grafana の既定 (admin/admin、初回ログインで変更を求められる)。
-  自分で決めるなら `kubectl -n mrc-lab create secret generic grafana-admin --from-literal=admin-user=admin --from-literal=admin-password=...`
+- Grafana: http://grafana.mrclab.localhost/ (匿名で閲覧可)。admin のパスワードは起動のたびにランダムに作られる
+  (`kubectl -n mrc-lab exec deploy/grafana -- cat /var/lib/grafana/admin-password`)。
+  決まったものにするなら `kubectl -n mrc-lab create secret generic grafana-admin --from-literal=admin-user=admin --from-literal=admin-password=...`
   を作って `kubectl -n mrc-lab rollout restart deploy/grafana`
 - 操作盤には認証が無いので Ingress には出さず、port-forward (127.0.0.1) だけで使う
 - 片付け: `kubectl delete ns mrc-lab` (Pod を消せばネームスペース・veth・eBPF も消える)
@@ -106,7 +107,7 @@ docker と `localhost:5000` のレジストリが要る
 make              # イメージのビルド・push、fabric と Prometheus/Grafana を導入 (Grafana の admin パスワードはランダムに生成)
 make console-ui   # 操作盤 → http://127.0.0.1:8089/  (Pod が入れ替わっても張り直す。Ctrl-C で終了)
 make status       # 状態をターミナルに表示
-make grafana-password
+make grafana-password   # Grafana の admin のパスワード
 python3 tools/smoke.py   # 操作盤の全操作を API で試す (console-ui か port-forward を動かした状態で)
 make down         # namespace ごと削除
 ```

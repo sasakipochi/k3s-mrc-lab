@@ -5,7 +5,7 @@
 export KUBECONFIG ?= $(HOME)/.kube/config
 NS        := mrc-lab
 REGISTRY  ?= localhost:5000
-VERSION   := 0.1.0
+VERSION   := 0.1.1
 IMAGE     := $(REGISTRY)/mrc-fabric:$(VERSION)
 PUBLIC    := ghcr.io/sasakipochi/mrc-fabric:$(VERSION)
 UI_PORT   ?= 8089
@@ -50,7 +50,8 @@ status:
 	./scripts/status.sh
 
 grafana-password:
-	@kubectl -n $(NS) get secret grafana-admin -o jsonpath='{.data.admin-password}' | base64 -d; echo
+	@kubectl -n $(NS) get secret grafana-admin -o jsonpath='{.data.admin-password}' 2>/dev/null | base64 -d | grep . || \
+	  kubectl -n $(NS) exec deploy/grafana -- cat /var/lib/grafana/admin-password; echo
 
 down:
 	kubectl delete ns $(NS)
