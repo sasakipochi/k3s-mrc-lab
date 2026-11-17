@@ -8,6 +8,7 @@ DS = {"type": "prometheus", "uid": "prom"}
 CAT = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#0ca30c", "#9085e9", "#e66767"]
 PATHS = [f"P{p}-S{s}" for p in (1, 2, 3, 4) for s in (1, 2)]
 GOOD, WARN, CRIT = "#0ca30c", "#b77900", "#d03b3b"
+UNUSED = "#9a9a94"   # 従来方式で使っていない経路。ライト/ダークどちらでも沈む中間の灰色
 R = "[10s]"
 _id = 0
 
@@ -80,10 +81,11 @@ def main():
          "fieldConfig": {"defaults": {"color": {"mode": "thresholds"},
                                       "thresholds": {"mode": "absolute", "steps": [{"color": GOOD, "value": None},
                                                                                    {"color": WARN, "value": 1},
-                                                                                   {"color": CRIT, "value": 2}]},
+                                                                                   {"color": CRIT, "value": 2},
+                                                                                   {"color": UNUSED, "value": 3}]},
                                       "mappings": [{"type": "value", "options": {
                                           "0": {"text": "使用中", "color": GOOD}, "1": {"text": "回避中", "color": WARN},
-                                          "2": {"text": "故障", "color": CRIT}, "3": {"text": "未使用", "color": "#4a4a46"}}}]},
+                                          "2": {"text": "故障", "color": CRIT}, "3": {"text": "未使用", "color": UNUSED}}}]},
                          "overrides": []}},
     ]
     y += 9
