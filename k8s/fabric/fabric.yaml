@@ -1,0 +1,44 @@
+# mrc-fabric: ラボ本体 (1 Pod の中にネットワークネームスペース 20 個・veth 32 本・eBPF) + 操作盤 + /metrics
+# ネームスペース・veth・eBPF を作るため privileged。Pod を消せば全部消える。
+# 操作盤に認証が無いので Service は ClusterIP のみ (Ingress は作らない)。make console-ui で port-forward して使う
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mrc-fabric
+  labels: {app: mrc-fabric}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector: {matchLabels: {app: mrc-fabric}}
+  template:
+    metadata:
+      labels: {app: mrc-fabric}
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 10
+      containers:
+        - name: fabric
+          image: ghcr.io/sasakipochi/mrc-fabric:0.1.0
+          imagePullPolicy: IfNotPresent
+          env:
+            - {name: GRAFANA_URL, value: "http://grafana.mrclab.localhost/"}
+            - {name: TZ, value: JST-9}      # 時刻表示を日本時間に (tzdata 無しで効く POSIX 形式)
+          ports: [{name: http, containerPort: 8080}]
+          readinessProbe:
+            httpGet: {path: /healthz, port: http}
+            periodSeconds: 5
+          resources:
+            requests: {cpu: 100m, memory: 96Mi}
+            limits: {cpu: "2", memory: 512Mi}
+          securityContext:
+            privileged: true
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mrc-fabric
+spec:
+  type: ClusterIP
+  selector: {app: mrc-fabric}
+  ports: [{name: http, port: 8080, targetPort: http}]

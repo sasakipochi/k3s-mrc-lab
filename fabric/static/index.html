@@ -1,0 +1,508 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MRC ラボ操作盤</title>
+<style>
+:root {
+  --bg: #f6f6f4; --surface: #fcfcfb; --surface-2: #efefec; --border: #dcdcd7;
+  --text: #0b0b0b; --text-2: #52514e; --muted: #77766f;
+  --accent: #2a78d6; --accent-ink: #ffffff;
+  --good: #0ca30c; --critical: #d03b3b; --warning: #b77900; --orange: #eb6834;
+  --wire: #b9b8b1; --band: #f0f0ed;
+  --mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", "Noto Sans Mono", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121211; --surface: #1a1a19; --surface-2: #232321; --border: #383835;
+    --text: #f0efec; --text-2: #c3c2b7; --muted: #95948c;
+    --accent: #3987e5; --orange: #d95926; --wire: #4a4a46; --band: #1f1f1d;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121211; --surface: #1a1a19; --surface-2: #232321; --border: #383835;
+  --text: #f0efec; --text-2: #c3c2b7; --muted: #95948c;
+  --accent: #3987e5; --orange: #d95926; --wire: #4a4a46; --band: #1f1f1d;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text);
+  font: 15px/1.6 system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif; }
+header { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;
+  padding: 16px 24px; border-bottom: 1px solid var(--border); background: var(--surface); }
+header h1 { margin: 0; font-size: 18px; font-weight: 600; }
+header .sub { color: var(--text-2); font-size: 13px; }
+header .right { margin-left: auto; display: flex; gap: 12px; align-items: center; font-size: 13px; }
+a { color: var(--accent); }
+main { max-width: 1320px; margin: 0 auto; padding: 20px 24px 48px; display: grid; gap: 16px;
+  grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr); }
+section { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; min-width: 0; }
+section h2 { margin: 0 0 12px; font-size: 14px; font-weight: 600; color: var(--text-2); letter-spacing: .02em; }
+.full { grid-column: 1 / -1; }
+@media (max-width: 900px) { main { grid-template-columns: minmax(0, 1fr); padding: 16px; } }
+
+/* 数値 */
+.nums { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 900px) { .nums { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.num .k { font-size: 12px; color: var(--text-2); }
+.num .v { font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.25; white-space: nowrap; }
+.num .u { font-size: 13px; color: var(--muted); margin-left: 3px; font-weight: 400; }
+.num .s { font-size: 12px; color: var(--muted); }
+
+/* 構成図 */
+svg.topo { width: 100%; height: auto; display: block; }
+svg .band { fill: var(--band); stroke: var(--border); }
+svg .bandlbl { fill: var(--muted); font-size: 12px; }
+svg .nd rect { fill: var(--surface-2); stroke: var(--border); stroke-width: 1.2; }
+svg .nd.host rect { stroke: var(--text-2); }
+svg .nd.down rect { stroke: var(--critical); stroke-width: 2; stroke-dasharray: 4 3; }
+svg .nd text { fill: var(--text); font-size: 12.5px; font-weight: 600; text-anchor: middle; }
+svg .nd text.sid { fill: var(--muted); font-size: 10.5px; font-weight: 400; font-family: var(--mono); }
+svg .nd { cursor: pointer; }
+svg line.ln { stroke-linecap: round; cursor: pointer; }
+svg .lbl { font-size: 10.5px; fill: var(--muted); font-family: var(--mono); pointer-events: none; }
+svg .lbl.hot { fill: var(--orange); font-weight: 600; }
+svg .hl { stroke: var(--text); stroke-width: 9; opacity: .18; fill: none; stroke-linejoin: round; pointer-events: none; }
+.legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--text-2); margin-top: 8px; }
+.legend i { display: inline-block; width: 22px; height: 0; border-top: 4px solid; vertical-align: middle; margin-right: 5px; }
+
+/* 経路表 */
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+th { color: var(--text-2); font-weight: 600; font-size: 12px; }
+td.n { text-align: right; font-variant-numeric: tabular-nums; }
+td.mono { font-family: var(--mono); font-size: 12px; color: var(--text-2); }
+tbody tr:hover { background: var(--surface-2); }
+.scroll { overflow-x: auto; }
+.bar { display: inline-block; height: 8px; border-radius: 2px; background: var(--accent); vertical-align: middle; margin-right: 6px; }
+.st { display: inline-flex; gap: 5px; align-items: center; font-size: 12px; border-radius: 999px; padding: 0 8px;
+  border: 1px solid var(--border); }
+.st .dot { width: 7px; height: 7px; border-radius: 50%; }
+.st.active .dot { background: var(--good); }
+.st.avoid { border-color: var(--warning); color: var(--warning); } .st.avoid .dot { background: var(--warning); }
+.st.failed { border-color: var(--critical); color: var(--critical); } .st.failed .dot { background: var(--critical); }
+.st.idle .dot { background: var(--muted); }
+tr.dim td { opacity: .45; }
+
+/* ボタン */
+.group { margin-bottom: 14px; }
+.group:last-child { margin-bottom: 0; }
+.group .gt { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.row + .row { margin-top: 8px; }
+button { font: inherit; font-size: 13.5px; border-radius: 7px; border: 1px solid var(--border);
+  background: var(--surface-2); color: var(--text); padding: 5px 11px; cursor: pointer; min-height: 32px; }
+button:hover:not(:disabled) { border-color: var(--accent); }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+button.danger { border-color: var(--critical); color: var(--critical); background: transparent; }
+button.on { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+button:disabled { opacity: .5; cursor: progress; }
+select { font: inherit; font-size: 13.5px; border-radius: 7px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text); padding: 5px 8px; min-height: 32px; max-width: 100%; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.chip { font-size: 12px; border-radius: 999px; padding: 0 8px; border: 1px solid var(--orange); color: var(--orange); }
+.chip.red { border-color: var(--critical); color: var(--critical); }
+
+/* ログ */
+.log { font-family: var(--mono); font-size: 12px; max-height: 300px; overflow-y: auto; margin: 0; }
+.log div { padding: 2px 0; border-bottom: 1px dashed var(--border); }
+.log .t { color: var(--muted); margin-right: 8px; }
+pre.out { font-family: var(--mono); font-size: 12px; background: var(--surface-2); border-radius: 8px; padding: 10px 12px;
+  margin: 0; white-space: pre-wrap; word-break: break-all; max-height: 320px; overflow: auto; }
+.out table td, .out table th { font-family: var(--mono); font-size: 11.5px; padding: 3px 6px; }
+.hint { font-size: 12.5px; color: var(--text-2); margin: 0; }
+.hint li { margin: 3px 0; }
+.ok { color: var(--good); } .ng { color: var(--critical); }
+.muted { color: var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <h1>MRC ラボ操作盤</h1>
+  <span class="sub">k3s 上の 4 プレーン × 2 スパイン (SRv6 uSID の静的ソースルーティング) で、Multipath Reliable Connection の動きを見る</span>
+  <span class="right"><span id="conn" class="muted">接続中…</span><a id="grafana" href="#" target="_blank" rel="noopener">Grafana ↗</a></span>
+</header>
+<main>
+  <section class="full">
+    <div class="nums">
+      <div class="num"><div class="k">方式</div><div class="v" id="k-mode">停止中</div><div class="s" id="k-mode-s">&nbsp;</div></div>
+      <div class="num"><div class="k">実効スループット</div><div class="v"><span id="k-tput">–</span><span class="u">Mbps</span></div><div class="s" id="k-tput-s">&nbsp;</div></div>
+      <div class="num"><div class="k">メッセージ完了時間 (64 KB)</div><div class="v"><span id="k-mct">–</span><span class="u">ms</span></div><div class="s" id="k-mct-s">&nbsp;</div></div>
+      <div class="num"><div class="k">再送</div><div class="v"><span id="k-retx">–</span><span class="u">/秒</span></div><div class="s" id="k-retx-s">&nbsp;</div></div>
+      <div class="num"><div class="k">順番の入れ替わり (受信)</div><div class="v"><span id="k-ooo">–</span><span class="u">/秒</span></div><div class="s" id="k-ooo-s">&nbsp;</div></div>
+      <div class="num"><div class="k">トリミング / ECN</div><div class="v"><span id="k-trim">–</span><span class="u">/</span><span id="k-ecn">–</span><span class="u">/秒</span></div><div class="s">スイッチが印を付けた数</div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>構成と流れ (1 秒ごと)</h2>
+    <svg class="topo" id="topo" viewBox="0 0 960 590" role="img" aria-label="4 プレーンのファブリック構成図"></svg>
+    <div class="legend">
+      <span><i style="border-color:var(--accent)"></i>太さ = 使用率</span>
+      <span><i style="border-color:var(--orange)"></i>トリミング・あふれ</span>
+      <span><i style="border-color:var(--critical);border-top-style:dashed"></i>切断</span>
+      <span><i style="border-color:var(--warning);border-top-style:dashed"></i>ロス・低速</span>
+      <span class="muted">リンクやスイッチをクリックすると右の「障害」で選ばれます</span>
+    </div>
+  </section>
+
+  <section>
+    <h2>操作</h2>
+    <div class="group">
+      <div class="gt">送受信 (h1 → h2 へ 64 KB のメッセージを書き込み続ける)</div>
+      <div class="row">
+        <button class="primary" data-act="start" data-args='{"mode":"mrc"}'>MRC で開始</button>
+        <button data-act="start" data-args='{"mode":"conv"}'>従来方式で開始</button>
+        <button data-act="stop">停止</button>
+      </div>
+    </div>
+    <div class="group">
+      <div class="gt">リンク帯域 (ファブリック 1 本あたり) と Packet Trimming</div>
+      <div class="row" id="rates"></div>
+      <div class="row">
+        <button id="trim-on" data-act="params" data-args='{"trim_on":1}'>トリミング有効</button>
+        <button id="trim-off" data-act="params" data-args='{"trim_on":0}'>無効</button>
+      </div>
+    </div>
+    <div class="group">
+      <div class="gt">混雑させる (別ジョブの通信 bg1 → bg2 を同じ経路に流す)</div>
+      <div class="row">
+        <select id="bg-path" aria-label="混雑させる経路"></select>
+        <button data-bg="50">50%</button><button data-bg="100">100%</button><button data-bg="150">150%</button>
+        <button data-bg="0">止める</button>
+      </div>
+      <div class="chips" id="bg-list"></div>
+    </div>
+    <div class="group">
+      <div class="gt">障害</div>
+      <div class="row">
+        <select id="link" aria-label="リンク"></select>
+      </div>
+      <div class="row">
+        <button class="danger" data-link="down">切断</button>
+        <button data-link="loss">ロス 2%</button>
+        <button data-link="slow">1/4 の速さ</button>
+        <button data-link="up">復旧</button>
+      </div>
+      <div class="row">
+        <select id="sw" aria-label="スイッチ"></select>
+        <button class="danger" data-sw="0">停止</button>
+        <button data-sw="1">復旧</button>
+      </div>
+      <div class="chips" id="fault-list"></div>
+    </div>
+    <div class="group">
+      <div class="row">
+        <button data-act="trace">uSID トレース</button>
+        <button data-act="reset">全部元に戻す</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="full">
+    <h2>経路ごとの状態 (送信側 h1 から見た 8 経路)</h2>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>経路</th><th>宛先アドレス (uSID)</th><th>状態</th><th>送信 /秒</th><th>ウィンドウ</th>
+          <th>ECN /秒</th><th>トリミング /秒</th><th>タイムアウト</th><th>RTT</th><th>受信側に届いた数</th></tr></thead>
+        <tbody id="paths"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>送信側のできごと</h2>
+    <div class="log" id="events"><div class="muted">まだありません</div></div>
+  </section>
+
+  <section>
+    <h2>操作の結果</h2>
+    <div id="out"><pre class="out">ボタンを押すとここに結果が出ます</pre></div>
+    <div class="log" id="history" style="margin-top:10px;max-height:140px"></div>
+  </section>
+
+  <section class="full">
+    <h2>見どころ</h2>
+    <ol class="hint">
+      <li>「MRC で開始」→ 8 経路にほぼ均等にばら撒かれる。受信側では順番の入れ替わりが大量に起きるが、届いた順にそのまま受け取るので問題にならない</li>
+      <li>「uSID トレース」→ スイッチを 1 台通るたびに宛先アドレスが 16 bit ずつ左にずれていく (経路はパケットの宛先に全部書いてある)</li>
+      <li>経路を選んで「150%」で混雑させる → そのリンクでトリミングされたヘッダーだけが先に届き、受信側が NACK → 別の経路で即再送。その経路は避けられて、他の経路の流量は変わらない</li>
+      <li>リンクを「切断」→ ACK が返らずタイムアウトした経路だけ故障扱いになり、残りの経路で走り続ける。「復旧」するとプローブが通って使用再開。スイッチには何も設定していない (経路の切り替えは送信側だけ)</li>
+      <li>「従来方式で開始」して同じことをする → 1 経路ぶんしか速度が出ない。混雑や切断に当たると go-back-N でまとめて送り直し、切断では 3 秒 (ルーティング収束の模擬) 止まる</li>
+      <li>「トリミング無効」で混雑させる → ヘッダーも捨てられるので、タイムアウトを待ってからの再送になり、混雑しただけの経路を故障と区別できない</li>
+    </ol>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const NS = "http://www.w3.org/2000/svg";
+let ST = null, busy = false, hoverPath = null, built = false;
+
+const fmt = (v, d = 0) => (v == null || isNaN(v)) ? "–" : Number(v).toFixed(d);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+// ---- 構成図 ----------------------------------------------------------------
+const X = { h1: 80, bg1: 80, l1: 300, s: 480, l2: 660, h2: 880, bg2: 880 };
+function pos(n) {
+  if (n === "h1") return [X.h1, 190];
+  if (n === "bg1") return [X.bg1, 440];
+  if (n === "h2") return [X.h2, 190];
+  if (n === "bg2") return [X.bg2, 440];
+  const p = +n[1], k = n[2], i = +n[3], y0 = 8 + (p - 1) * 145;
+  if (k === "l") return [i === 1 ? X.l1 : X.l2, y0 + 68];
+  return [X.s, y0 + (i === 1 ? 32 : 104)];
+}
+function el(tag, attrs, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs || {})) e.setAttribute(k, v);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+const label = (n) => n.length === 4 ? n.toUpperCase().replace(/^(P\d)(L|S)(\d)$/, "$1-$2$3") : n;
+
+function buildTopo(st) {
+  const svg = $("topo");
+  svg.innerHTML = "";
+  for (let p = 1; p <= 4; p++) {
+    const y0 = 8 + (p - 1) * 145;
+    el("rect", { x: 220, y: y0, width: 520, height: 137, rx: 10, class: "band" }, svg);
+    el("text", { x: 230, y: y0 + 16, class: "bandlbl" }, svg).textContent = `プレーン ${p}`;
+  }
+  const gl = el("g", { id: "links" }, svg);
+  el("g", { id: "hl" }, svg);
+  const lbls = [];
+  for (const l of st.links) {
+    const [x1, y1] = pos(l.a), [x2, y2] = pos(l.b);
+    const ln = el("line", { x1, y1, x2, y2, class: "ln", id: "ln-" + l.id }, gl);
+    el("title", {}, ln);
+    ln.addEventListener("click", () => { $("link").value = l.id; });
+    if (l.kind === "fabric") {
+      lbls.push({ x: x1 + (x2 - x1) * 0.36, y: y1 + (y2 - y1) * 0.36 - 6, id: "lb-" + l.id });
+    }
+  }
+  for (const [n, sid] of Object.entries(st.sids)) {
+    const [x, y] = pos(n), host = n.startsWith("h") || n.startsWith("bg");
+    const w = host ? 108 : 78, h = host ? 52 : 36;
+    const g = el("g", { class: "nd" + (host ? " host" : ""), id: "nd-" + n }, svg);
+    el("rect", { x: x - w / 2, y: y - h / 2, width: w, height: h, rx: 7 }, g);
+    const name = { h1: "h1 GPU-A", h2: "h2 GPU-B", bg1: "bg1 別ジョブ", bg2: "bg2 別ジョブ" }[n] || label(n);
+    el("text", { x, y: y - (host ? 4 : 1) }, g).textContent = name;
+    el("text", { x, y: y + (host ? 14 : 12), class: "sid" }, g).textContent = (host ? "uSID " : "") + sid;
+    el("title", {}, g).textContent = host ? `${name}  fcbb:bbbb:${sid}::` : `${label(n)}  uSID ${sid} (End, next-csid)`;
+    if (!host) g.addEventListener("click", () => { $("sw").value = n; });
+  }
+  for (const b of lbls) el("text", { x: b.x, y: b.y, class: "lbl", "text-anchor": "middle", id: b.id }, svg);
+}
+
+function linkStats(st) {
+  const by = {};
+  for (const p of st.ports) (by[p.link] = by[p.link] || []).push(p);
+  return by;
+}
+
+function drawTopo(st) {
+  const ports = linkStats(st);
+  const css = getComputedStyle(document.documentElement);
+  const C = (v) => css.getPropertyValue(v).trim();
+  for (const l of st.links) {
+    const ln = $("ln-" + l.id);
+    if (!ln) continue;
+    const ps = ports[l.id] || [];
+    let util = 0, trim = 0, drop = 0, ecn = 0, bps = 0;
+    const tip = [];
+    const linkRate = Math.max(0, ...ps.map((p) => p.rate_bps));
+    for (const p of ps) {
+      if (linkRate) util = Math.max(util, p.bps / (p.rate_bps || linkRate));
+      bps = Math.max(bps, p.bps); trim += p.trim; ecn += p.ecn; drop += p.drop;
+      tip.push(`${label(p.node)} ${p.port} → ${label(p.peer)}: ${fmt(p.bps / 1e6, 2)} Mbps` +
+        (p.rate_bps ? ` / ${fmt(p.rate_bps / 1e6, 1)} Mbps, 平均キュー ${fmt(p.avg_q / 1000, 1)} KB` : "") +
+        `, ECN ${fmt(p.ecn)}/s, トリミング ${fmt(p.trim)}/s, 破棄 ${fmt(p.drop)}/s`);
+    }
+    const f = st.faults[l.id];
+    let color = C("--accent"), dash = "", w = 1.5 + Math.min(1, util) * 7, op = 0.35 + 0.65 * Math.min(1, util);
+    if (l.id.includes("bg") && util < 0.01) { color = C("--wire"); op = 1; w = 1.2; }
+    if (trim > 0.5 || drop > 0.5) { color = C("--orange"); op = 1; }
+    if (f && f.kind === "down") { color = C("--critical"); dash = "6 5"; op = 1; w = 2.5; }
+    else if (f) { color = C("--warning"); dash = "3 4"; op = 1; w = Math.max(w, 2.5); }
+    if (util < 0.01 && !f && !(trim > 0.5)) { color = C("--wire"); op = 1; w = 1.5; }
+    ln.setAttribute("stroke", color); ln.setAttribute("stroke-width", w.toFixed(1));
+    ln.setAttribute("stroke-opacity", op.toFixed(2)); ln.setAttribute("stroke-dasharray", dash);
+    ln.querySelector("title").textContent = `${l.id}${f ? " [" + ({ down: "切断", loss: "ロス " + f.loss_pct + "%", slow: "低速" }[f.kind]) + "]" : ""}\n` + tip.join("\n");
+    const lb = $("lb-" + l.id);
+    if (lb) {
+      let t = "", hot = false;
+      if (f && f.kind === "down") { t = "切断"; hot = true; }
+      else if (trim > 0.5) { t = `trim ${fmt(trim)}/s`; hot = true; }
+      else if (drop > 0.5) { t = `drop ${fmt(drop)}/s`; hot = true; }
+      else if (ecn > 0.5) t = `ECN ${fmt(ecn)}/s`;
+      lb.textContent = t; lb.setAttribute("class", "lbl" + (hot ? " hot" : ""));
+    }
+  }
+  for (const n of Object.keys(st.sids)) {
+    const g = $("nd-" + n);
+    if (g) g.classList.toggle("down", st.sw_down.includes(n));
+  }
+  drawHighlight(st);
+}
+
+function drawHighlight(st) {
+  const g = $("hl");
+  if (!g) return;
+  g.innerHTML = "";
+  if (hoverPath == null || !st) return;
+  const p = st.paths[hoverPath];
+  const pts = ["h1", ...p.hops, "h2"].map((n) => pos(n).join(",")).join(" ");
+  el("polyline", { points: pts, class: "hl" }, g);
+}
+
+// ---- 表・数値 --------------------------------------------------------------
+const STATE_JA = { active: "使用中", avoid: "回避中", failed: "故障", idle: "–" };
+
+function render(st) {
+  ST = st;
+  if (!built && st.links) { buildTopo(st); fillSelects(st); built = true; }
+  $("conn").textContent = st.built ? "● ラボ稼働中" : "ラボを組み立て中… " + (st.build_log.slice(-1)[0] || "");
+  $("conn").className = st.built ? "ok" : "muted";
+  $("grafana").href = st.grafana;
+  drawTopo(st);
+
+  const s = st.sender, r = st.receiver, sr = st.sender_rates || {}, rr = st.recv_rates || {};
+  const mode = st.mode;
+  $("k-mode").textContent = mode === "mrc" ? "MRC" : mode === "conv" ? "従来方式" : "停止中";
+  $("k-mode-s").textContent = mode === "mrc" ? "8 経路にばら撒き" : mode === "conv" ? `1 経路 (${st.paths[s?.conv_path ?? 0].name})・go-back-N` : " ";
+  const cap = 8 * st.params.rate_mbps * 1000 / st.wire;
+  $("k-tput").textContent = s ? fmt((sr.delivered || 0) * 8 * 1000 / 1e6, 1) : "–";
+  $("k-tput-s").textContent = `上限の目安 ${fmt(cap, 1)} Mbps (8 経路 × ${st.params.rate_mbps} Mbps)`;
+  $("k-mct").textContent = s ? fmt(s.mct_avg_ms, 0) : "–";
+  $("k-mct-s").textContent = s && s.mct_max_ms != null ? `直近 30 個の平均。最悪 ${fmt(s.mct_max_ms, 0)} ms` : " ";
+  $("k-retx").textContent = s ? fmt(sr.retx, 0) : "–";
+  $("k-retx-s").textContent = s ? (mode === "conv" ? `go-back-N ${fmt(sr.gobackn, 1)} 回/秒` : `タイムアウト ${fmt(sr.timeout, 0)}/秒`) : " ";
+  $("k-ooo").textContent = r ? fmt(rr.ooo, 0) : "–";
+  $("k-ooo-s").textContent = r ? (mode === "conv" ? `順番違いで捨てた ${fmt(rr.ooo_drop, 0)}/秒` : "届いた順にそのまま受け取る") : " ";
+  let trim = 0, ecn = 0;
+  for (const p of st.ports) { trim += p.trim; ecn += p.ecn; }
+  $("k-trim").textContent = fmt(trim, 0); $("k-ecn").textContent = fmt(ecn, 0);
+
+  // 経路表
+  const rows = [];
+  const pr = st.path_rates || [];
+  const maxSent = Math.max(1, ...pr.map((x) => x.sent));
+  st.paths.forEach((p, i) => {
+    const sp = s ? s.paths[i] : null, rt = pr[i] || {};
+    let state = sp ? sp.state : "idle";
+    const dim = mode === "conv" && s && s.conv_path !== i;
+    if (dim) state = "idle";
+    rows.push(`<tr data-i="${i}" class="${dim ? "dim" : ""}"><td><b>${p.name}</b></td><td class="mono">${p.fwd}</td>` +
+      `<td><span class="st ${state}"><span class="dot"></span>${STATE_JA[state]}</span></td>` +
+      `<td class="n"><span class="bar" style="width:${Math.round(60 * (rt.sent || 0) / maxSent)}px"></span>${s ? fmt(rt.sent) : "–"}</td>` +
+      `<td class="n">${sp && mode === "mrc" ? fmt(sp.window, 1) : (sp && !dim ? fmt(s.cwnd, 1) : "–")}</td>` +
+      `<td class="n">${s ? fmt(rt.ecn) : "–"}</td><td class="n">${s ? fmt(rt.nack) : "–"}</td>` +
+      `<td class="n">${sp ? sp.timeout : "–"}</td><td class="n">${sp && sp.srtt_ms ? fmt(sp.srtt_ms, 1) + " ms" : "–"}</td>` +
+      `<td class="n">${r ? r.per_path[i] : "–"}</td></tr>`);
+  });
+  $("paths").innerHTML = rows.join("");
+
+  // できごと
+  const ev = s ? s.events.slice().reverse() : [];
+  $("events").innerHTML = ev.length ? ev.map((e) => `<div><span class="t">${e.t}</span>${esc(e.text)}</div>`).join("")
+    : '<div class="muted">まだありません</div>';
+  $("history").innerHTML = st.history.slice().reverse().map((h) =>
+    `<div><span class="t">${h.time}</span><span class="${h.ok ? "ok" : "ng"}">${h.ok ? "✓" : "✕"}</span> ${esc(h.action)} ${esc(JSON.stringify(h.args))} <span class="muted">${h.sec}s</span></div>`).join("");
+
+  // 帯域・トリミング・混雑・障害
+  $("rates").innerHTML = '<span class="muted" style="font-size:13px">帯域</span>' + [1, 2, 4].map((v) =>
+    `<button data-rate="${v}" class="${st.params.rate_mbps == v ? "on" : ""}">${v} Mbps</button>`).join("");
+  $("trim-on").classList.toggle("on", !!st.params.trim_on);
+  $("trim-off").classList.toggle("on", !st.params.trim_on);
+  $("bg-list").innerHTML = Object.entries(st.bg).map(([pid, pct]) => `<span class="chip">混雑 ${st.paths[pid].name} ${pct}%</span>`).join("");
+  const fl = Object.entries(st.link_faults).map(([id, f]) =>
+    `<span class="chip ${f.kind === "down" ? "red" : ""}">${id} ${{ down: "切断", loss: "ロス " + f.loss_pct + "%", slow: "1/4" }[f.kind]}</span>`);
+  for (const sw of st.sw_down) fl.push(`<span class="chip red">${label(sw)} 停止</span>`);
+  $("fault-list").innerHTML = fl.join("");
+  document.querySelectorAll("button").forEach((b) => { b.disabled = busy || !st.built; });
+}
+
+function fillSelects(st) {
+  $("bg-path").innerHTML = st.paths.map((p) => `<option value="${p.id}">${p.name} (${p.hops.map(label).join(" → ")})</option>`).join("");
+  const names = { h1: "h1", bg1: "bg1", h2: "h2", bg2: "bg2" };
+  let html = "";
+  for (let p = 1; p <= 4; p++) {
+    html += `<optgroup label="プレーン ${p}">`;
+    for (const l of st.links.filter((x) => x.id.startsWith(`p${p}-`))) {
+      html += `<option value="${l.id}">${names[l.a] || label(l.a)} ─ ${names[l.b] || label(l.b)}</option>`;
+    }
+    html += "</optgroup>";
+  }
+  $("link").innerHTML = html;
+  $("link").value = "p1-l1-s1";
+  $("sw").innerHTML = Object.keys(st.sids).filter((n) => n.startsWith("p")).map((n) => `<option value="${n}">${label(n)}</option>`).join("");
+  $("sw").value = "p2s1";
+  $("paths").addEventListener("mouseover", (e) => {
+    const tr = e.target.closest("tr");
+    hoverPath = tr ? +tr.dataset.i : null; drawHighlight(ST);
+  });
+  $("paths").addEventListener("mouseleave", () => { hoverPath = null; drawHighlight(ST); });
+}
+
+// ---- 操作 ------------------------------------------------------------------
+function renderOut(text, ok) {
+  const lines = text.split("\n");
+  let html = "", tbl = [];
+  const flush = () => {
+    if (!tbl.length) return;
+    const cells = (l) => l.replace(/^\||\|$/g, "").split("|").map((c) => esc(c.trim()).replace(/`([^`]+)`/g, "$1"));
+    const head = cells(tbl[0]);
+    html += "<table><thead><tr>" + head.map((c) => `<th>${c}</th>`).join("") + "</tr></thead><tbody>" +
+      tbl.slice(2).map((l) => "<tr>" + cells(l).map((c) => `<td>${c}</td>`).join("") + "</tr>").join("") + "</tbody></table>";
+    tbl = [];
+  };
+  let pre = [];
+  const flushPre = () => { if (pre.length) { html += `<pre class="out">${esc(pre.join("\n"))}</pre>`; pre = []; } };
+  for (const l of lines) {
+    if (l.startsWith("|")) { flushPre(); tbl.push(l); } else { flush(); pre.push(l); }
+  }
+  flush(); flushPre();
+  $("out").innerHTML = `<div class="${ok ? "ok" : "ng"}" style="font-size:12px;margin-bottom:4px">${ok ? "✓ 成功" : "✕ 失敗"}</div><div class="out scroll">${html}</div>`;
+}
+
+async function act(name, args) {
+  if (busy) return;
+  busy = true; if (ST) render(ST);
+  $("out").innerHTML = '<pre class="out">実行中…</pre>';
+  try {
+    const res = await fetch("/api/action/" + name, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(args || {}) });
+    const d = await res.json();
+    renderOut(d.output || "", d.ok);
+  } catch (e) {
+    renderOut(String(e), false);
+  } finally {
+    busy = false; poll();
+  }
+}
+
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("button");
+  if (!b || b.disabled) return;
+  if (b.dataset.act) act(b.dataset.act, b.dataset.args ? JSON.parse(b.dataset.args) : {});
+  else if (b.dataset.rate) act("params", { rate_mbps: +b.dataset.rate });
+  else if (b.dataset.bg != null) act("bg", { path: +$("bg-path").value, pct: +b.dataset.bg });
+  else if (b.dataset.link) act("link", { link: $("link").value, kind: b.dataset.link, loss_pct: 2 });
+  else if (b.dataset.sw != null) act("switch", { sw: $("sw").value, up: b.dataset.sw === "1" });
+});
+
+let timer = null;
+async function poll() {
+  clearTimeout(timer);
+  try {
+    const res = await fetch("/api/state");
+    render(await res.json());
+  } catch (e) {
+    $("conn").textContent = "✕ つながらない (port-forward が切れた?)"; $("conn").className = "ng";
+  }
+  timer = setTimeout(poll, 1000);
+}
+poll();
+</script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+__pycache__/
+*.pyc
+# このPCでの作業記録 (非公開)
+worklog.md

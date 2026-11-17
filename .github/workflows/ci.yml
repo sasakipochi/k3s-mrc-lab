@@ -1,0 +1,24 @@
+# push / PR ごとに: Python の構文、ダッシュボードの生成結果が最新か、マニフェストの組み立て、イメージのビルド (push しない)
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with: {python-version: "3.14"}
+      - run: python3 -m py_compile fabric/*.py tools/*.py
+      - name: Dashboard JSON is up to date
+        run: python3 tools/make_dashboard.py && git diff --exit-code k8s/monitoring/dashboards
+      - run: kubectl kustomize . > /dev/null
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/build-push-action@v7
+        with:
+          context: fabric
+          push: false
